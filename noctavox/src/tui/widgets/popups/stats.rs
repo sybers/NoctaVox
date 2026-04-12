@@ -142,26 +142,25 @@ fn get_most_played(
 ) -> Vec<Line<'static>> {
     let row_width = (area.width - ((area.width / 10) * 2)).min(70) as usize;
 
-    let title_cutoff = most_played
-        .iter()
-        .map(|(s, _)| s.title.len())
-        .max()
-        .unwrap()
-        .min(30);
-
     let play_count_cutoff = 6;
     let spacer_cutoff = 4;
 
-    let remainder = row_width
+    let content_width = row_width
         .saturating_sub(play_count_cutoff)
-        .saturating_sub(spacer_cutoff)
-        .saturating_sub(title_cutoff);
+        .saturating_sub(spacer_cutoff);
+
+    let max_title_len = most_played
+        .iter()
+        .map(|(s, _)| s.title.len())
+        .max()
+        .unwrap();
+
+    let remainder = content_width * 4 / 10;
+    let title_cutoff = (content_width - remainder).min(max_title_len);
 
     let header = Line::from_iter([
         Span::from(format!("{:>5}", "#")),
-        Span::from("   "),
-        Span::from(format!("{:<title_cutoff$}", "Title")),
-        Span::raw(" "),
+        Span::from(format!("   {:<title_cutoff$} ", "Title")),
         Span::from(format!("{:>remainder$}", "Artist  ",)),
     ])
     .fg(fade_color(theme.dark, theme.text_muted, 1.4));

@@ -6,6 +6,7 @@
  - Fixed voxio seek errors on mp3 files
  - Fixed visual bugs when searching in mimimal mode
  - Fixed inconsistent multi-select behavior
+ - Several minimal mode formatting fixes
  - Bumped ratatui-textarea to version 0.9
 
 ## Version 0.2.5
