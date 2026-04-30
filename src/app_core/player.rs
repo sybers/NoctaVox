@@ -5,7 +5,7 @@ use crate::{
     app_config::AppConfig,
     app_core::NoctaVox,
     key_handler::SelectionType,
-    library::{SimpleSong, SongDatabase, SongInfo},
+    library::{FileType, SimpleSong, SongDatabase, SongInfo},
     navidrome,
     playback::ValidatedSong,
     player::{NoctavoxTrack, PlayerEvent},
@@ -13,6 +13,12 @@ use crate::{
 };
 
 impl NoctaVox {
+    pub(crate) fn remove_navidrome_play_temp(&mut self) {
+        if let Some(path) = self.navidrome_play_temp.take() {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
     fn resolve_playback_path(&self, song: &ValidatedSong) -> Result<PathBuf> {
         if !song.is_navidrome_stream() {
             return Ok(song.path());
@@ -29,17 +35,40 @@ impl NoctaVox {
             &cfg.nav_username,
             &cfg.nav_password,
         )?;
-        let bytes = navidrome::download_song(&client, nav_id)?;
-        let ext = song.meta.filetype.as_file_extension();
+        // M4A is MP4: `moov` is often at EOF, so partial download fails in Symphonia. Subsonic
+        // `format=mp3` asks Navidrome to transcode; temp file must be named `.mp3`.
+        let transcode = matches!(song.meta.filetype, FileType::M4A);
+        let ext = if transcode {
+            "mp3"
+        } else {
+            song.meta.filetype.as_file_extension()
+        };
         let dest = std::env::temp_dir().join(format!("noctavox_play_{}.{}", song.id(), ext));
-        std::fs::write(&dest, &bytes)?;
+        navidrome::stream_track_to_file(&client, nav_id, dest.clone(), transcode)?;
         Ok(dest)
     }
 
     pub(crate) fn play_song(&mut self, song: &ValidatedSong) -> Result<()> {
+        self.remove_navidrome_play_temp();
+
         let path = self.resolve_playback_path(song)?;
-        let track = NoctavoxTrack::new(song.id(), path);
-        self.player.play(track)
+        let is_navidrome = song.is_navidrome_stream();
+        let track = NoctavoxTrack::new(song.id(), path.clone());
+
+        match self.player.play(track) {
+            Ok(()) => {
+                if is_navidrome {
+                    self.navidrome_play_temp = Some(path);
+                }
+                Ok(())
+            }
+            Err(e) => {
+                if is_navidrome {
+                    let _ = std::fs::remove_file(path);
+                }
+                Err(e)
+            }
+        }
     }
 
     pub(crate) fn play_selected_song(&mut self, count: usize) -> Result<()> {
@@ -49,9 +78,20 @@ impl NoctaVox {
         }
 
         let song = self.ui.get_selected_song()?;
+        let selected_idx = self.ui.get_selected_idx()?;
 
         if self.ui.get_mode() == &Mode::Queue {
             self.remove_song()?;
+        }
+
+        // Auto-advance at end of track requires upcoming songs in the queue; enqueue the rest of
+        // the current list (album tracks, playlist, Power library, search results).
+        if Self::queue_tail_for_autoplay(self.ui.get_mode()) {
+            self.ui.playback.clear_queue();
+            let tail = self.ui.legal_songs_tail(selected_idx);
+            if !tail.is_empty() {
+                self.ui.playback.enqueue_multi(&tail)?;
+            }
         }
 
         let validated = ValidatedSong::new(&song)?;
@@ -59,6 +99,10 @@ impl NoctaVox {
         self.force_sync()?;
 
         Ok(())
+    }
+
+    fn queue_tail_for_autoplay(mode: &Mode) -> bool {
+        matches!(mode, Mode::Power | Mode::Search | Mode::Library(_))
     }
 
     pub(crate) fn play_next(&mut self) -> Result<()> {
@@ -91,7 +135,9 @@ impl NoctaVox {
 
     pub fn stop(&mut self) -> Result<()> {
         self.ui.playback.clear_queue();
-        self.player.stop()
+        self.player.stop()?;
+        self.remove_navidrome_play_temp();
+        Ok(())
     }
 
     pub fn remove_song(&mut self) -> Result<()> {
@@ -169,6 +215,8 @@ impl NoctaVox {
                     self.sync_player(&delta);
                     return Ok(());
                 }
+
+                self.remove_navidrome_play_temp();
 
                 if let Some(mc) = self.media_controls.as_mut() {
                     mc.set_stopped();

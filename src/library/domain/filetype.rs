@@ -6,7 +6,9 @@ use std::fmt::Display;
 
 pub static LEGAL_EXTENSION: std::sync::LazyLock<std::collections::HashSet<&'static str>> =
     std::sync::LazyLock::new(|| {
-        std::collections::HashSet::from(["mp3", "m4a", "flac", "ogg", "wav", "opus"])
+        std::collections::HashSet::from([
+            "mp3", "m4a", "aac", "flac", "ogg", "wav", "opus",
+        ])
     });
 
 #[allow(clippy::upper_case_acronyms)]
@@ -23,8 +25,11 @@ pub enum FileType {
 }
 
 impl From<&str> for FileType {
+    /// Parses a file extension with or without a leading dot; matching is ASCII case-insensitive
+    /// so `.M4A` and `.m4a` both map to [FileType::M4A].
     fn from(str: &str) -> Self {
-        match str {
+        let e = str.trim().trim_start_matches('.').to_ascii_lowercase();
+        match e.as_str() {
             "mp3" => Self::MP3,
             "aac" | "m4a" => Self::M4A,
             "ogg" => Self::OGG,

@@ -172,6 +172,14 @@ impl UiState {
 }
 
 impl UiState {
+    /// Songs after `selected_idx` in the current table (album, playlist, Power, search, etc.).
+    pub(crate) fn legal_songs_tail(&self, selected_idx: usize) -> Vec<Arc<SimpleSong>> {
+        self.legal_songs
+            .get(selected_idx.saturating_add(1)..)
+            .map(|s| s.to_vec())
+            .unwrap_or_default()
+    }
+
     pub fn peek_queue(&self) -> Option<&Arc<SimpleSong>> {
         self.playback.peek_queue()
     }

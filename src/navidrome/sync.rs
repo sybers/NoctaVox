@@ -19,9 +19,31 @@ use submarine::{
 /// with strict reverse proxies.
 pub struct NavidromeClient {
     submarine: Client,
-    http: reqwest::Client,
+    pub(crate) http: reqwest::Client,
     base_url: String,
     auth: Auth,
+}
+
+impl NavidromeClient {
+    /// Authenticated Subsonic `stream` URL for the given media id.
+    ///
+    /// M4A/MP4 cannot be decoded from a growing file when the `moov` atom is at the end; request
+    /// `format=mp3` so Navidrome transcodes to a streamable MP3 (requires transcoding enabled).
+    pub fn stream_url_for_track(&self, nav_id: &str, transcode_to_mp3: bool) -> anyhow::Result<String> {
+        let format: Option<&str> = if transcode_to_mp3 { Some("mp3") } else { None };
+        self.submarine
+            .stream_url(
+                nav_id,
+                None,
+                format,
+                None,
+                None::<String>,
+                None,
+                None,
+            )
+            .map(|u| u.to_string())
+            .map_err(|e| anyhow::anyhow!("stream URL: {e}"))
+    }
 }
 
 fn album_artist_name(album: &submarine::data::AlbumWithSongsId3) -> String {
@@ -145,18 +167,4 @@ pub fn ping(client: &NavidromeClient) -> Result<()> {
     let _ = block_on(ping_get(&client.http, &client.base_url, &client.auth))
         .map_err(|e| anyhow::anyhow!("Navidrome ping failed: {e}"))?;
     Ok(())
-}
-
-/// Download track bytes (used for playback temp file).
-pub fn download_song(client: &NavidromeClient, nav_id: &str) -> Result<Vec<u8>> {
-    block_on(client.submarine.stream(
-        nav_id,
-        None,
-        None::<String>,
-        None,
-        None::<String>,
-        None,
-        None,
-    ))
-    .map_err(|e| anyhow::anyhow!("stream failed for {nav_id}: {e}"))
 }

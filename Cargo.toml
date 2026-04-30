@@ -34,8 +34,8 @@ voxio = "0.1.3"
 souvlaki = "0.7"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 submarine = { version = "0.1.1", features = ["navidrome"] }
-tokio = { version = "1.48", features = ["rt-multi-thread", "macros"] }
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "fs", "io-util"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "stream", "blocking"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = "0.56"

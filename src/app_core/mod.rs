@@ -6,7 +6,7 @@ use crate::{
     ui_state::UiState,
 };
 use crossbeam::channel::Receiver;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 mod app;
 mod key_events;
@@ -26,6 +26,8 @@ pub struct NoctaVox {
     library_refresh_rec: Option<Receiver<LibraryRefreshProgress>>,
     media_controls: Option<MediaControlsHandle>,
     media_sync_tick: u32,
+    /// Last Navidrome temp cache file under `std::env::temp_dir()`; removed on track change / stop.
+    navidrome_play_temp: Option<PathBuf>,
 }
 
 pub enum LibraryRefreshProgress {

@@ -35,6 +35,7 @@ impl NoctaVox {
             key_buffer: KeyBuffer::new(),
             media_controls,
             media_sync_tick: 0,
+            navidrome_play_temp: None,
         }
     }
 
@@ -62,6 +63,7 @@ impl NoctaVox {
 
                 if self.ui.get_mode() == Mode::QUIT {
                     self.player.stop()?;
+                    self.remove_navidrome_play_temp();
                     if let Some(mc) = self.media_controls.as_mut() {
                         mc.set_stopped();
                     }
