@@ -87,6 +87,7 @@ impl NoctaVox {
             Action::RootAdd         => self.settings_add_root(),
             Action::RootRemove      => self.settings_remove_root(),
             Action::RootConfirm     => self.settings_root_confirm()?,
+            Action::SetupConfirm    => self.setup_wizard_confirm()?,
 
             _ => (),
         }

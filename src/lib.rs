@@ -19,10 +19,12 @@ use ui_state::UiState;
 use unicode_normalization::UnicodeNormalization;
 use xxhash_rust::xxh3::xxh3_64;
 
+pub mod app_config;
 pub mod app_core;
 pub mod database;
 pub mod key_handler;
 pub mod library;
+pub mod navidrome;
 pub mod media_controls;
 pub mod playback;
 pub mod player;
@@ -51,6 +53,17 @@ pub const TAP_BUFFER_CAPACITY: usize = 2048;
 pub const THEME_DIRECTORY: &'static str = "themes";
 pub const CONFIG_DIRECTORY: &'static str = "noctavox";
 pub const DATABASE_FILENAME: &'static str = "noctavox.db";
+
+/// Stored in `songs.path` for Navidrome tracks (no `:` — valid as a relative path on Windows).
+pub const NAV_PATH_PREFIX: &str = "navidrome/";
+
+#[inline]
+pub fn nav_song_hash(nav_id: &str) -> u64 {
+    let mut data = Vec::with_capacity(9 + nav_id.len());
+    data.extend_from_slice(b"navsong:");
+    data.extend_from_slice(nav_id.as_bytes());
+    xxh3_64(&data)
+}
 
 /// Create a hash based on...
 ///  - date of last modification (millis)

@@ -2,7 +2,8 @@ use crate::{
     REFRESH_RATE,
     key_handler::{key_buffer::KeyBuffer, *},
     ui_state::{
-        LibraryView, Mode, Pane, PlaylistAction, PopupType, ProgressDisplay, SettingsMode, UiState,
+        LibraryView, Mode, Pane, PlaylistAction, PopupType, ProgressDisplay, SettingsMode, SetupMode,
+        UiState,
     },
 };
 use anyhow::Result;
@@ -288,7 +289,26 @@ fn handle_popup(key: &KeyEvent, popup: &PopupType) -> Option<Action> {
         PopupType::Settings(s) => root_manager(key, s),
         PopupType::Playlist(p) => handle_playlist(key, p),
         PopupType::ThemeManager => handle_themeing(key),
+        PopupType::Setup(s) => setup_wizard(key, s),
         _ => Some(Action::ClosePopup),
+    }
+}
+
+fn setup_wizard(key: &KeyEvent, variant: &SetupMode) -> Option<Action> {
+    use SetupMode::*;
+    match variant {
+        ChooseKind => match key.code {
+            Up | Char('k') => Some(Action::PopupScrollUp),
+            Down | Char('j') => Some(Action::PopupScrollDown),
+            Enter => Some(Action::SetupConfirm),
+            Esc => Some(Action::ClosePopup),
+            _ => None,
+        },
+        NavUrl | NavUser | NavPassword => match key.code {
+            Esc => Some(Action::ClosePopup),
+            Enter => Some(Action::SetupConfirm),
+            _ => Some(Action::PopupInput(*key)),
+        },
     }
 }
 

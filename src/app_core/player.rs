@@ -1,19 +1,45 @@
 use anyhow::{Result, anyhow};
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::{
+    app_config::AppConfig,
     app_core::NoctaVox,
     key_handler::SelectionType,
     library::{SimpleSong, SongDatabase, SongInfo},
+    navidrome,
     playback::ValidatedSong,
     player::{NoctavoxTrack, PlayerEvent},
     ui_state::{LibraryView, Mode},
 };
 
 impl NoctaVox {
+    fn resolve_playback_path(&self, song: &ValidatedSong) -> Result<PathBuf> {
+        if !song.is_navidrome_stream() {
+            return Ok(song.path());
+        }
+
+        let nav_id = song
+            .path
+            .strip_prefix(crate::NAV_PATH_PREFIX)
+            .ok_or_else(|| anyhow!("invalid Navidrome path"))?;
+
+        let cfg = AppConfig::load()?;
+        let client = navidrome::build_client(
+            &cfg.nav_url_trimmed(),
+            &cfg.nav_username,
+            &cfg.nav_password,
+        )?;
+        let bytes = navidrome::download_song(&client, nav_id)?;
+        let ext = song.meta.filetype.as_file_extension();
+        let dest = std::env::temp_dir().join(format!("noctavox_play_{}.{}", song.id(), ext));
+        std::fs::write(&dest, &bytes)?;
+        Ok(dest)
+    }
+
     pub(crate) fn play_song(&mut self, song: &ValidatedSong) -> Result<()> {
-        let song = NoctavoxTrack::from(song);
-        self.player.play(song)
+        let path = self.resolve_playback_path(song)?;
+        let track = NoctavoxTrack::new(song.id(), path);
+        self.player.play(track)
     }
 
     pub(crate) fn play_selected_song(&mut self, count: usize) -> Result<()> {

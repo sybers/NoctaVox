@@ -467,6 +467,24 @@ impl Database {
             .execute(SET_LATEST_SCAN, params![timestamp.to_le_bytes()])?;
         Ok(())
     }
+
+    pub fn get_session_value(&self, key: &str) -> Result<Option<String>> {
+        self.conn
+            .query_row(GET_SESSION_VALUE, params![key], |row| row.get(0))
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn set_session_value(&mut self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(SET_SESSION_STATE, params![key, value])?;
+        Ok(())
+    }
+
+    /// Wipes all catalogued music (local or Navidrome). Used before a full Navidrome re-sync.
+    pub fn clear_library_catalog(&mut self) -> Result<()> {
+        self.conn.execute_batch(CLEAR_LIBRARY_DATA)?;
+        Ok(())
+    }
 }
 
 #[inline]

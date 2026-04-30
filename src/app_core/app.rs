@@ -1,11 +1,12 @@
 use crate::{
     Library,
+    app_config::{AppConfig, LibraryMode},
     app_core::{NoctaVox, key_loop},
     key_handler::KeyBuffer,
     overwrite_line,
     player::PlayerHandle,
     tui,
-    ui_state::{Mode, PopupType, SettingsMode, UiState},
+    ui_state::{Mode, PopupType, SettingsMode, SetupMode, UiState},
 };
 use std::sync::Arc;
 
@@ -43,7 +44,12 @@ impl NoctaVox {
             self.initialize_ui();
             t.draw(|f| tui::render(f, &mut self.ui))?;
 
-            if self.library.roots.is_empty() {
+            let _ = crate::app_config::security_readme_if_missing();
+            let cfg = AppConfig::load().unwrap_or_default();
+            if !cfg.is_library_ready(!self.library.roots.is_empty()) {
+                self.ui.show_popup(PopupType::Setup(SetupMode::ChooseKind));
+            } else if self.library.library_mode == LibraryMode::Local && self.library.roots.is_empty()
+            {
                 self.ui
                     .show_popup(PopupType::Settings(SettingsMode::AddRoot));
             }

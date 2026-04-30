@@ -1,11 +1,13 @@
 use super::LEGAL_EXTENSION;
 use crate::{
     SongMap,
+    app_config::{AppConfig, LibraryMode},
     app_core::LibraryRefreshProgress,
     calculate_signature,
     database::Database,
     expand_tilde,
     library::{Album, LongSong, SimpleSong, SongInfo},
+    navidrome,
 };
 
 use anyhow::{Result, anyhow};
@@ -28,6 +30,7 @@ pub struct Library {
     pub roots: HashSet<PathBuf>,
     pub songs: SongMap,
     pub albums: IndexMap<i64, Album>,
+    pub library_mode: LibraryMode,
 }
 
 const SCANNING_FINISHED: u8 = 25;
@@ -42,11 +45,15 @@ impl Library {
             roots: HashSet::new(),
             songs: SongMap::default(),
             albums: IndexMap::new(),
+            library_mode: LibraryMode::Local,
         }
     }
 
     pub fn init() -> Self {
         let mut lib = Self::new();
+        lib.library_mode = AppConfig::load()
+            .map(|c| c.library_mode)
+            .unwrap_or(LibraryMode::Local);
 
         {
             if let Ok(db_roots) = lib.db.get_roots() {
@@ -82,20 +89,38 @@ impl Library {
 
     /// Build the library based on the current state of the database.
     pub fn build_library(&mut self) -> Result<()> {
-        if self.roots.is_empty() {
-            return Ok(());
-        }
+        match self.library_mode {
+            LibraryMode::Navidrome => {
+                let cfg = AppConfig::load()?;
+                if !cfg.is_library_ready(false) {
+                    return Ok(());
+                }
+                let client = navidrome::build_client(
+                    &cfg.nav_url_trimmed(),
+                    &cfg.nav_username,
+                    &cfg.nav_password,
+                )?;
+                navidrome::sync_library_from_navidrome(&client, &mut self.db)?;
+                self.collect_songs()?;
+                self.build_albums()?;
+            }
+            LibraryMode::Local => {
+                if self.roots.is_empty() {
+                    return Ok(());
+                }
 
-        if !self.any_root_modified()? {
-            self.collect_songs()?;
-            self.build_albums()?;
-        } else {
-            self.update_db_by_root()?;
-            self.collect_songs()?;
-            self.build_albums()?;
+                if !self.any_root_modified()? {
+                    self.collect_songs()?;
+                    self.build_albums()?;
+                } else {
+                    self.update_db_by_root()?;
+                    self.collect_songs()?;
+                    self.build_albums()?;
 
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-            self.db.set_last_scan(timestamp)?;
+                    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+                    self.db.set_last_scan(timestamp)?;
+                }
+            }
         }
 
         Ok(())
@@ -307,6 +332,32 @@ impl Library {
         &mut self,
         tx: &Sender<LibraryRefreshProgress>,
     ) -> Result<()> {
+        if self.library_mode == LibraryMode::Navidrome {
+            let _ = tx.send(LibraryRefreshProgress::Scanning { progress: 0 });
+            let _ = tx.send(LibraryRefreshProgress::Scanning {
+                progress: SCANNING_FINISHED,
+            });
+            let _ = tx.send(LibraryRefreshProgress::UpdatingDatabase {
+                progress: PROCESSING_FINISHED,
+            });
+            let cfg = AppConfig::load()?;
+            if !cfg.is_library_ready(false) {
+                return Ok(());
+            }
+            let client = navidrome::build_client(
+                &cfg.nav_url_trimmed(),
+                &cfg.nav_username,
+                &cfg.nav_password,
+            )?;
+            navidrome::sync_library_from_navidrome(&client, &mut self.db)?;
+            self.collect_songs()?;
+            let _ = tx.send(LibraryRefreshProgress::UpdatingDatabase { progress: 90 });
+            let _ = tx.send(LibraryRefreshProgress::Rebuilding { progress: 95 });
+            self.build_albums()?;
+            let _ = tx.send(LibraryRefreshProgress::Rebuilding { progress: 100 });
+            return Ok(());
+        }
+
         if self.roots.is_empty() {
             return Ok(());
         }

@@ -11,6 +11,7 @@ use std::sync::Arc;
 mod app;
 mod key_events;
 mod library;
+mod onboarding;
 mod playback;
 mod player;
 mod select;

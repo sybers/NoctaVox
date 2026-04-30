@@ -114,6 +114,7 @@ pub enum Action {
     RootAdd,
     RootRemove,
     RootConfirm,
+    SetupConfirm,
 
     HandleErrors,
     SoftReset,

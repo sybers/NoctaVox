@@ -1,5 +1,6 @@
 use crate::{
     Library,
+    app_config::LibraryMode,
     app_core::{LibraryRefreshProgress, NoctaVox},
 };
 use anyhow::{Result, anyhow};
@@ -20,6 +21,14 @@ impl NoctaVox {
             let _ = tx.send(LibraryRefreshProgress::Scanning { progress: 1 });
             let mut updated_lib = Library::init();
 
+            if updated_lib.library_mode == LibraryMode::Navidrome {
+                let _ = match updated_lib.build_library_with_progress(&tx) {
+                    Ok(_) => tx.send(LibraryRefreshProgress::Complete(updated_lib)),
+                    Err(e) => tx.send(LibraryRefreshProgress::Error(e.to_string())),
+                };
+                return;
+            }
+
             if updated_lib.roots.is_empty() {
                 let _ = tx.send(LibraryRefreshProgress::Complete(updated_lib));
                 return;
@@ -38,8 +47,12 @@ impl NoctaVox {
         match progress {
             LibraryRefreshProgress::Scanning { progress } => {
                 self.ui.set_library_refresh_progress(Some(progress));
-                self.ui
-                    .set_library_refresh_detail(Some(format!("Scanning Songs...")));
+                let detail = if self.library.library_mode == LibraryMode::Navidrome {
+                    "Fetching catalog from Navidrome...".to_string()
+                } else {
+                    "Scanning songs...".to_string()
+                };
+                self.ui.set_library_refresh_detail(Some(detail));
             }
             LibraryRefreshProgress::Processing {
                 progress,

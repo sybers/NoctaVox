@@ -160,11 +160,13 @@ impl NoctaVox {
     }
 
     pub fn force_sync(&self) -> Result<()> {
-        let next = self
-            .ui
-            .playback
-            .peek_queue_validated()
-            .map(|s| NoctavoxTrack::from(s.as_ref()));
+        let next = self.ui.playback.peek_queue_validated().and_then(|s| {
+            if s.is_navidrome_stream() {
+                None
+            } else {
+                Some(NoctavoxTrack::from(s.as_ref()))
+            }
+        });
         let _ = self.player.set_next(next);
         Ok(())
     }
@@ -172,7 +174,13 @@ impl NoctaVox {
     /// Ensure that player's up_next value is always synced
     pub fn sync_player(&self, delta: &QueueDelta) {
         if let QueueDelta::HeadChanged { curr, .. } = delta {
-            let next = curr.as_ref().map(|s| NoctavoxTrack::new(s.id(), s.path()));
+            let next = curr.as_ref().and_then(|s| {
+                if s.is_navidrome_stream() {
+                    None
+                } else {
+                    Some(NoctavoxTrack::new(s.id(), s.path()))
+                }
+            });
             let _ = self.player.set_next(next);
         }
     }

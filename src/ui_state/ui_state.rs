@@ -9,11 +9,12 @@ use crate::{
     ui_state::{
         LayoutStyle, LibraryView, Mode, Pane, PlaylistAction, ProgressDisplay, SettingsMode,
         ThemeManager, UiState, WaveformManager,
-        popup::{PopupState, PopupType},
+        popup::{PopupState, PopupType, SetupMode},
         spectrum::SpectrumState,
         stats::VoxStats,
     },
 };
+use super::SetupWizardDraft;
 use anyhow::{Error, Result};
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
@@ -44,6 +45,8 @@ impl UiState {
 
             library_refresh_progress: None,
             library_refresh_detail: None,
+
+            setup_draft: SetupWizardDraft::default(),
         }
     }
 }
@@ -98,6 +101,20 @@ impl UiState {
         }
     }
 
+    pub fn get_setup_mode(&self) -> Option<&SetupMode> {
+        match &self.popup.current {
+            PopupType::Setup(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn uses_navidrome_library(&self) -> bool {
+        matches!(
+            self.library.library_mode,
+            crate::app_config::LibraryMode::Navidrome
+        )
+    }
+
     pub fn get_input_context(&self) -> InputContext {
         if self.popup.is_open() {
             return InputContext::Popup(self.popup.current.clone());
@@ -125,6 +142,9 @@ impl UiState {
                     PopupType::Playlist(PlaylistAction::CreateWithSongs)
                 )
                 | (Pane::Popup, PopupType::Playlist(PlaylistAction::Rename))
+                | (Pane::Popup, PopupType::Setup(SetupMode::NavUrl))
+                | (Pane::Popup, PopupType::Setup(SetupMode::NavUser))
+                | (Pane::Popup, PopupType::Setup(SetupMode::NavPassword))
         )
     }
 }

@@ -134,6 +134,20 @@ pub const SET_SESSION_STATE: &str = "
         VALUES (?, ?)
 ";
 
+pub const GET_SESSION_VALUE: &str = "
+    SELECT value FROM session_state WHERE key = ?
+";
+
+pub const CLEAR_LIBRARY_DATA: &str = "
+    DELETE FROM waveforms;
+    DELETE FROM history;
+    DELETE FROM plays;
+    DELETE FROM playlist_songs;
+    DELETE FROM songs;
+    DELETE FROM albums;
+    DELETE FROM artists;
+";
+
 pub const CREATE_NEW_PLAYLIST: &str = "
     INSERT OR IGNORE INTO playlists (name, updated_at) 
         VALUES (?, strftime('%s', 'now'))

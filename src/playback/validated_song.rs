@@ -1,5 +1,5 @@
 use crate::{
-    Database, get_readable_duration,
+    Database, NAV_PATH_PREFIX, get_readable_duration,
     library::{SimpleSong, SongDatabase, SongInfo},
 };
 use anyhow::Result;
@@ -14,12 +14,18 @@ impl ValidatedSong {
     pub fn new(song: &Arc<SimpleSong>) -> Result<Arc<Self>> {
         let path = song.get_path()?;
 
-        std::fs::metadata(&path)?;
+        if !path.starts_with(NAV_PATH_PREFIX) {
+            std::fs::metadata(&path)?;
+        }
 
         Ok(Arc::new(Self {
             meta: Arc::clone(&song),
             path,
         }))
+    }
+
+    pub fn is_navidrome_stream(&self) -> bool {
+        self.path.starts_with(NAV_PATH_PREFIX)
     }
 
     pub fn id(&self) -> u64 {

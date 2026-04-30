@@ -121,6 +121,10 @@ impl WaveformManager {
 
 impl UiState {
     pub fn request_waveform(&mut self, song: &SimpleSong) {
+        if self.uses_navidrome_library() {
+            self.waveform.clear();
+            return;
+        }
         self.waveform.request(song);
     }
 

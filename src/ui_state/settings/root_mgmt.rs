@@ -1,5 +1,6 @@
 use crate::{
     Library,
+    app_config::AppConfig,
     app_core::NoctaVox,
     ui_state::{PopupType, SettingsMode, UiState},
 };
@@ -52,6 +53,9 @@ impl UiState {
     }
 
     pub fn enter_settings(&mut self) {
+        if self.uses_navidrome_library() {
+            return;
+        }
         if !self.get_roots().is_empty() {
             self.popup.selection.select(Some(0));
         }
@@ -69,6 +73,12 @@ impl NoctaVox {
     }
 
     pub(crate) fn activate_settings(&mut self) {
+        if self.ui.uses_navidrome_library() {
+            self.ui.set_error(anyhow::anyhow!(
+                "Folder library settings are not used in Navidrome mode. Press F5 to refresh the catalog."
+            ));
+            return;
+        }
         match self.ui.get_roots().is_empty() {
             true => self.ui.popup.selection.select(None),
             false => self.ui.popup.selection.select(Some(0)),
@@ -90,6 +100,11 @@ impl NoctaVox {
                     match self.ui.add_root(&path) {
                         Err(e) => self.ui.set_error(e),
                         Ok(_) => {
+                            let mut cfg = AppConfig::load()?;
+                            cfg.library_mode = crate::app_config::LibraryMode::Local;
+                            cfg.onboarding_complete = true;
+                            cfg.save()?;
+                            self.reload_library_arc()?;
                             self.update_library()?;
                             self.ui.close_popup();
                         }

@@ -81,4 +81,16 @@ impl FileType {
     pub fn to_i64(&self) -> i64 {
         *self as i64
     }
+
+    pub fn as_file_extension(&self) -> &'static str {
+        match *self {
+            FileType::MP3 => "mp3",
+            FileType::M4A => "m4a",
+            FileType::OGG => "ogg",
+            FileType::WAV => "wav",
+            FileType::FLAC => "flac",
+            FileType::OPUS => "opus",
+            FileType::ERR => "audio",
+        }
+    }
 }

@@ -7,6 +7,14 @@ use crate::{
 };
 
 #[derive(PartialEq, Clone)]
+pub enum SetupMode {
+    ChooseKind,
+    NavUrl,
+    NavUser,
+    NavPassword,
+}
+
+#[derive(PartialEq, Clone)]
 pub enum PopupType {
     None,
     Stats,
@@ -14,6 +22,7 @@ pub enum PopupType {
     Settings(SettingsMode),
     Playlist(PlaylistAction),
     ThemeManager,
+    Setup(SetupMode),
 }
 
 pub struct PopupState {
@@ -48,6 +57,23 @@ impl PopupState {
             PopupType::Settings(SettingsMode::AddRoot) => {
                 self.input
                     .set_placeholder_text(" Enter path to directory: ");
+                self.input.clear();
+            }
+            PopupType::Setup(SetupMode::ChooseKind) => {
+                self.input.clear();
+                self.selection.select(Some(0));
+            }
+            PopupType::Setup(SetupMode::NavUrl) => {
+                self.input
+                    .set_placeholder_text(" https://navidrome.example.com ");
+                self.input.clear();
+            }
+            PopupType::Setup(SetupMode::NavUser) => {
+                self.input.set_placeholder_text(" username ");
+                self.input.clear();
+            }
+            PopupType::Setup(SetupMode::NavPassword) => {
+                self.input.set_placeholder_text(" password or token ");
                 self.input.clear();
             }
 

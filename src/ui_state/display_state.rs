@@ -2,7 +2,7 @@ use super::{AlbumSort, LibraryView, Mode, Pane, TableSort, UiState};
 use crate::{
     key_handler::Director,
     library::{Album, Playlist, SimpleSong, SongInfo},
-    ui_state::{PopupType, ProgressDisplay},
+    ui_state::{PopupType, ProgressDisplay, SetupMode},
 };
 use anyhow::{Context, Result, anyhow, bail};
 use indexmap::IndexSet;
@@ -467,6 +467,8 @@ impl UiState {
             PopupType::Settings(_) => self.get_roots().len(),
             PopupType::Playlist(_) => self.playlists.len(),
             PopupType::ThemeManager => self.theme_manager.theme_lib.len(),
+            PopupType::Setup(SetupMode::ChooseKind) => 2,
+            PopupType::Setup(_) => return,
             _ => return,
         };
 
@@ -491,6 +493,8 @@ impl UiState {
             PopupType::Settings(_) => self.get_roots().len(),
             PopupType::Playlist(_) => self.playlists.len(),
             PopupType::ThemeManager => self.theme_manager.theme_lib.len(),
+            PopupType::Setup(SetupMode::ChooseKind) => 2,
+            PopupType::Setup(_) => return,
             _ => return,
         };
 

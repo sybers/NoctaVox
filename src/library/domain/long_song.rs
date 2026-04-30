@@ -1,6 +1,7 @@
 use super::{FileType, SongInfo};
 use crate::{
-    calculate_signature, database::Database, get_readable_duration, normalize_metadata_str as nms,
+    calculate_signature, database::Database, get_readable_duration, nav_song_hash,
+    normalize_metadata_str as nms, NAV_PATH_PREFIX,
 };
 use anyhow::{Result, bail};
 use lofty::{
@@ -107,6 +108,47 @@ impl LongSong {
         }
 
         Ok(song_info)
+    }
+
+    /// Virtual path uses [crate::NAV_PATH_PREFIX] (no colon; valid on Windows paths).
+    pub fn from_navidrome_song(
+        song: &submarine::data::Child,
+        album_title: &str,
+        album_artist: &str,
+    ) -> Result<LongSong> {
+        let title_raw = if song.title.is_empty() {
+            &song.name
+        } else {
+            &song.title
+        };
+        let title = nms(title_raw);
+        let artist_raw = song
+            .artist
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .unwrap_or(album_artist);
+        let artist = Arc::new(nms(artist_raw));
+        let aa = Arc::new(nms(album_artist));
+        let album = Arc::new(nms(album_title));
+        let suffix = song.suffix.as_deref().unwrap_or("mp3");
+        let path = PathBuf::from(format!("{NAV_PATH_PREFIX}{}", song.id));
+
+        Ok(LongSong {
+            id: nav_song_hash(&song.id),
+            title,
+            year: song.year.map(|y| y as u32),
+            artist,
+            album_artist: Arc::clone(&aa),
+            album,
+            track_no: song.track.map(|t| t as u32),
+            disc_no: song.disc_number.map(|d| d as u32),
+            duration: Duration::from_secs(song.duration.unwrap_or(0).max(0) as u64),
+            channels: None,
+            bit_rate: song.bit_rate.map(|b| b as u32),
+            sample_rate: None,
+            filetype: FileType::from(suffix),
+            path,
+        })
     }
 
     pub fn get_path(&self, db: &mut Database) -> Result<String> {

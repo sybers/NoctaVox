@@ -18,7 +18,7 @@ use std::{collections::VecDeque, sync::Arc};
 pub use display_state::DisplayState;
 pub use domain::{AlbumSort, LibraryView, Mode, Pane, TableSort};
 pub use playlist::PlaylistAction;
-pub use popup::PopupType;
+pub use popup::{PopupType, SetupMode};
 pub use progress_display::ProgressDisplay;
 pub use search_state::MatchField;
 pub use settings::SettingsMode;
@@ -87,6 +87,14 @@ pub struct UiState {
 
     pub library_refresh_progress: Option<u8>,
     pub library_refresh_detail: Option<String>,
+
+    pub setup_draft: SetupWizardDraft,
+}
+
+#[derive(Default, Clone)]
+pub struct SetupWizardDraft {
+    pub nav_base_url: String,
+    pub nav_username: String,
 }
 
 pub use theme::*;
